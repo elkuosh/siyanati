@@ -17,6 +17,7 @@ void main() {
   _patchGradle();
   _copyIcons();
   _copyWidgetFiles();
+  _installSigningKey();
   // flutter create بيضيف تست افتراضي بيشاور على MyApp اللي مش موجود
   final t = File('test/widget_test.dart');
   if (t.existsSync() && t.readAsStringSync().contains('MyApp')) t.deleteSync();
@@ -184,4 +185,15 @@ void _copyWidgetFiles() {
     e.copySync(dest.path);
   }
   stdout.writeln('• ملفات الويدجيت');
+}
+
+/// مفتاح توقيع ثابت: عشان كل نسخة جديدة تتسطب فوق القديمة من غير ما تمسحها
+void _installSigningKey() {
+  final key = File('tool/debug.keystore');
+  if (!key.existsSync()) return;
+  final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
+  if (home == null) return;
+  final dir = Directory('$home/.android')..createSync(recursive: true);
+  key.copySync('${dir.path}/debug.keystore');
+  stdout.writeln('• مفتاح التوقيع');
 }
