@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 
+import 'launch_actions.dart';
 import 'notifications.dart';
 import 'screens/home.dart';
 import 'state.dart';
@@ -16,6 +17,7 @@ Future<void> main() async {
   await Notifier.instance.init();
   await AppData.instance.load();
   runApp(const GarageApp());
+  initLaunchActions();
 }
 
 class GarageApp extends StatelessWidget {
@@ -47,6 +49,7 @@ class GarageApp extends StatelessWidget {
       listenable: AppData.instance,
       builder: (context, _) => MaterialApp(
         title: 'صيانتي',
+        navigatorKey: navigatorKey,
         debugShowCheckedModeBanner: false,
         locale: const Locale('ar'),
         supportedLocales: const [Locale('ar'), Locale('en')],

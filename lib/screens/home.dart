@@ -107,34 +107,12 @@ Future<void> showQuickAdd(BuildContext context, {int? vehicleId}) async {
               Navigator.pop(c);
               final v = vehicleId != null
                   ? app.vehicleById(vehicleId)
-                  : await _pickVehicle(context);
+                  : await pickVehicle(context);
               if (v != null && context.mounted) showOdometerDialog(context, v);
             },
           ),
         ],
       ),
-    ),
-  );
-}
-
-Future<Vehicle?> _pickVehicle(BuildContext context) async {
-  final app = AppData.instance;
-  if (app.vehicles.length == 1) return app.vehicles.first;
-  return showDialog<Vehicle>(
-    context: context,
-    builder: (c) => SimpleDialog(
-      title: const Text('اختار المركبة'),
-      children: [
-        for (final v in app.vehicles)
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(c, v),
-            child: Row(children: [
-              Icon(vehicleTypeIcon(v.type)),
-              const SizedBox(width: 10),
-              Text(v.displayName),
-            ]),
-          ),
-      ],
     ),
   );
 }

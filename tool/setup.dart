@@ -16,6 +16,7 @@ void main() {
   _patchManifest(manifest);
   _patchGradle();
   _copyIcons();
+  _copyWidgetFiles();
   // flutter create بيضيف تست افتراضي بيشاور على MyApp اللي مش موجود
   final t = File('test/widget_test.dart');
   if (t.existsSync() && t.readAsStringSync().contains('MyApp')) t.deleteSync();
@@ -58,6 +59,38 @@ void _patchManifest(File f) {
 ''';
     final i = s.lastIndexOf('</application>');
     s = s.substring(0, i) + receivers + '    ' + s.substring(i);
+  }
+
+  // اتجاه عربي
+  if (!s.contains('android:supportsRtl')) {
+    s = s.replaceFirst('<application', '<application\n        android:supportsRtl="true"');
+  }
+
+  // ويدجيت العداد
+  if (!s.contains('.OdometerWidget')) {
+    const widgetReceiver = '''
+        <receiver android:name=".OdometerWidget" android:exported="true">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/odometer_widget_info" />
+        </receiver>
+''';
+    final j = s.lastIndexOf('</application>');
+    s = s.substring(0, j) + widgetReceiver + '    ' + s.substring(j);
+  }
+
+  // فتح التطبيق من الويدجيت
+  if (!s.contains('es.antonborri.home_widget.action.LAUNCH')) {
+    const launchFilter = '''
+            <intent-filter>
+                <action android:name="es.antonborri.home_widget.action.LAUNCH" />
+            </intent-filter>
+''';
+    final k = s.indexOf('</activity>');
+    s = s.substring(0, k) + launchFilter + '        ' + s.substring(k);
   }
 
   f.writeAsStringSync(s);
@@ -135,4 +168,20 @@ void _copyIcons() {
     }
   });
   stdout.writeln('• الأيقونة ($n مقاسات)');
+}
+
+void _copyWidgetFiles() {
+  final kotlinDir = Directory('android/app/src/main/kotlin/com/rovana/garage_log');
+  kotlinDir.createSync(recursive: true);
+  File('tool/android/kotlin/OdometerWidget.kt')
+      .copySync('${kotlinDir.path}/OdometerWidget.kt');
+  final src = Directory('tool/android/res');
+  for (final e in src.listSync(recursive: true)) {
+    if (e is! File) continue;
+    final rel = e.path.substring(src.path.length + 1);
+    final dest = File('android/app/src/main/res/$rel');
+    dest.parent.createSync(recursive: true);
+    e.copySync(dest.path);
+  }
+  stdout.writeln('• ملفات الويدجيت');
 }

@@ -9,7 +9,8 @@ class ScheduledReminder {
   final String title;
   final String body;
   final DateTime when;
-  ScheduledReminder(this.id, this.title, this.body, this.when);
+  final String? payload;
+  ScheduledReminder(this.id, this.title, this.body, this.when, {this.payload});
 }
 
 class Notifier {
@@ -19,6 +20,12 @@ class Notifier {
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   bool _ready = false;
+
+  /// بيتنادي لما المستخدم يدوس على إشعار والتطبيق مفتوح
+  void Function(String? payload)? onTap;
+
+  /// لو التطبيق اتفتح من إشعار
+  String? launchPayload;
 
   static const _details = NotificationDetails(
     android: AndroidNotificationDetails(
@@ -36,8 +43,15 @@ class Notifier {
       const settings = InitializationSettings(
         android: AndroidInitializationSettings('@mipmap/ic_launcher'),
       );
-      await _plugin.initialize(settings);
+      await _plugin.initialize(
+        settings,
+        onDidReceiveNotificationResponse: (r) => onTap?.call(r.payload),
+      );
       _ready = true;
+      final details = await _plugin.getNotificationAppLaunchDetails();
+      if (details?.didNotificationLaunchApp ?? false) {
+        launchPayload = details!.notificationResponse?.payload;
+      }
     } catch (e) {
       debugPrint('notifications init failed: $e');
     }
@@ -57,7 +71,8 @@ class Notifier {
   }
 
   /// بيلغي كل التنبيهات القديمة ويجدول الجديدة
-  Future<void> reschedule(List<ScheduledReminder> items) async {
+  Future<void> reschedule(List<ScheduledReminder> items,
+      {ScheduledReminder? weekly}) async {
     if (!_ready) return;
     try {
       await _plugin.cancelAll();
@@ -75,6 +90,22 @@ class Notifier {
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
+          payload: r.payload,
+        );
+      }
+      // تذكير أسبوعي بتحديث العداد
+      if (weekly != null) {
+        await _plugin.zonedSchedule(
+          weekly.id,
+          weekly.title,
+          weekly.body,
+          tz.TZDateTime.from(weekly.when, tz.UTC),
+          _details,
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+          payload: weekly.payload,
         );
       }
     } catch (e) {

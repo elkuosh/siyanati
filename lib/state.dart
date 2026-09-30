@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'db.dart';
+import 'launch_actions.dart';
 import 'models.dart';
 import 'notifications.dart';
 import 'utils.dart';
@@ -84,6 +85,8 @@ class AppSettings {
   int soonKmMoto;
   String currency;
   ThemeMode themeMode;
+  bool odoReminder;
+  int odoDay; // 1 = الاتنين ... 7 = الحد
 
   AppSettings({
     this.notifications = true,
@@ -94,6 +97,8 @@ class AppSettings {
     this.soonKmMoto = 200,
     this.currency = 'ج.م',
     this.themeMode = ThemeMode.system,
+    this.odoReminder = true,
+    this.odoDay = DateTime.friday,
   });
 
   factory AppSettings.fromMap(Map<String, String> m) => AppSettings(
@@ -104,6 +109,8 @@ class AppSettings {
         soonKmCar: int.tryParse(m['soonKmCar'] ?? '') ?? 500,
         soonKmMoto: int.tryParse(m['soonKmMoto'] ?? '') ?? 200,
         currency: m['currency'] ?? 'ج.م',
+        odoReminder: m['odoReminder'] != '0',
+        odoDay: int.tryParse(m['odoDay'] ?? '') ?? DateTime.friday,
         themeMode: switch (m['theme']) {
           'light' => ThemeMode.light,
           'dark' => ThemeMode.dark,
@@ -119,6 +126,8 @@ class AppSettings {
         'soonKmCar': '$soonKmCar',
         'soonKmMoto': '$soonKmMoto',
         'currency': currency,
+        'odoReminder': odoReminder ? '1' : '0',
+        'odoDay': '$odoDay',
         'theme': switch (themeMode) {
           ThemeMode.light => 'light',
           ThemeMode.dark => 'dark',
@@ -152,6 +161,7 @@ class AppData extends ChangeNotifier {
     loaded = true;
     notifyListeners();
     _rescheduleNotifications();
+    syncHomeScreen(this);
   }
 
   String get cur => settings.currency;
@@ -455,6 +465,24 @@ class AppData extends ChangeNotifier {
       Notifier.instance.reschedule(const []);
       return;
     }
+    ScheduledReminder? weekly;
+    if (settings.odoReminder && vehicles.isNotEmpty) {
+      final now = DateTime.now();
+      var d = DateTime(now.year, now.month, now.day, settings.reminderHour);
+      while (d.weekday != settings.odoDay || !d.isAfter(now)) {
+        d = d.add(const Duration(days: 1));
+        d = DateTime(d.year, d.month, d.day, settings.reminderHour);
+      }
+      weekly = ScheduledReminder(
+        900000,
+        'حدّث العداد 🚗',
+        vehicles.length == 1
+            ? 'اكتب قراية عداد ${vehicles.first.displayName} عشان مواعيد الصيانة تفضل مظبوطة'
+            : 'اكتب قراية عداد مركباتك عشان مواعيد الصيانة تفضل مظبوطة',
+        d,
+        payload: 'odometer',
+      );
+    }
     final items = <ScheduledReminder>[];
     var id = 1;
     DateTime at(DateTime d) =>
@@ -478,6 +506,6 @@ class AppData extends ChangeNotifier {
     for (final d in docDues()) {
       add(d.vehicle.displayName, d.label, d.date);
     }
-    Notifier.instance.reschedule(items);
+    Notifier.instance.reschedule(items, weekly: weekly);
   }
 }

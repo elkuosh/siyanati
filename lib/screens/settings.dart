@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:home_widget/home_widget.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -146,6 +147,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
               if (n != null) await _update(() => s.daysBefore = n);
             },
           ),
+          SwitchListTile(
+            secondary: const Icon(Icons.speed),
+            title: const Text('تذكير أسبوعي بتحديث العداد'),
+            subtitle: Text('كل ${_dayName(s.odoDay)} الساعة ${_hourText(s.reminderHour)}'),
+            value: s.odoReminder && s.notifications,
+            onChanged: s.notifications
+                ? (b) => _update(() => s.odoReminder = b)
+                : null,
+          ),
+          ListTile(
+            leading: const Icon(Icons.today_outlined),
+            title: const Text('يوم تذكير العداد'),
+            trailing: Text(_dayName(s.odoDay)),
+            enabled: s.notifications && s.odoReminder,
+            onTap: () async {
+              final d = await showDialog<int>(
+                context: context,
+                builder: (c) => SimpleDialog(
+                  title: const Text('اختار اليوم'),
+                  children: [
+                    for (final day in const [6, 7, 1, 2, 3, 4, 5])
+                      SimpleDialogOption(
+                        onPressed: () => Navigator.pop(c, day),
+                        child: Text(_dayName(day)),
+                      ),
+                  ],
+                ),
+              );
+              if (d != null) await _update(() => s.odoDay = d);
+            },
+          ),
           ListTile(
             leading: const Icon(Icons.notification_add_outlined),
             title: const Text('جرّب إشعار'),
@@ -185,6 +217,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   suffix: 'كم', min: 1);
               if (n != null) await _update(() => s.soonKmMoto = n);
             },
+          ),
+          const SectionTitle('الشاشة الرئيسية للموبايل'),
+          ListTile(
+            leading: const Icon(Icons.widgets_outlined),
+            title: const Text('ضيف ويدجيت العداد'),
+            subtitle: const Text('بيعرض عداد كل مركبة، ودوسة عليها تحدّثه'),
+            onTap: () async {
+              try {
+                await HomeWidget.requestPinWidget(
+                    qualifiedAndroidName: 'com.rovana.garage_log.OdometerWidget');
+              } catch (_) {
+                if (context.mounted) {
+                  showSnack(context,
+                      'دوس ضغطة طويلة على الشاشة الرئيسية ← الأدوات (Widgets) ← صيانتي');
+                }
+              }
+            },
+          ),
+          const ListTile(
+            leading: Icon(Icons.touch_app_outlined),
+            title: Text('اختصارات سريعة'),
+            subtitle: Text(
+                'دوس ضغطة طويلة على أيقونة التطبيق هتلاقي "عداد" لكل مركبة و"تسجيل صيانة". تقدر تسحب أي اختصار منهم على الشاشة.'),
           ),
           const SectionTitle('العرض'),
           ListTile(
@@ -268,6 +323,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
     );
   }
+
+  String _dayName(int d) => const {
+        1: 'الاتنين',
+        2: 'التلات',
+        3: 'الأربع',
+        4: 'الخميس',
+        5: 'الجمعة',
+        6: 'السبت',
+        7: 'الحد',
+      }[d] ??
+      'الجمعة';
 
   String _hourText(int h) {
     final period = h < 12 ? 'ص' : 'م';
